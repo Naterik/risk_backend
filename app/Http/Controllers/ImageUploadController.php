@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TImage;
+use Exception;
 use Illuminate\Http\Request;
 use Intervention\Image\ImageManager;
 use Illuminate\Support\Facades\Storage;
@@ -57,5 +58,28 @@ class ImageUploadController extends Controller
             'path' => url('/storage/' . $filePath),
             'thumbnail_path' => url('/storage/thumbnails/thumb_' . $fileName),
         ], 200);
+    }
+
+    public function getRiskImage(Request $request, $riskId)
+    {
+        try {
+            $images = TImage::where('risk_id', $riskId)->get()->map(function ($image) {
+                return [
+                    'file_name' => $image->file_name,
+                    'path' => url('/storage/images/' . $image->file_name),
+                    'thumbnail_path' => url('/storage/thumbnails/thumb_' . $image->file_name),
+                ];
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $images,
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

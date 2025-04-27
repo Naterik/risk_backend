@@ -61,7 +61,7 @@ class TRiskSubmit extends Model
 {
 	protected $table = 't_risk_submit';
 	protected $primaryKey = 'risk_id';
-	public $incrementing = false;
+	public $incrementing = true;
 
 	protected $casts = [
 		'risk_id' => 'int',

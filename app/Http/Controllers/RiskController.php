@@ -2,27 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TImage;
 use App\Models\TRiskSubmit;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Http\Requests\RiskRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Resources\RiskCollection;
+use Intervention\Image\ImageManager;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class RiskController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
-
         $user = Auth::user();
-        $organizationIds = $user->r_user_divisions ? $user->r_user_divisions->pluck('organization_id') : [];
 
-        $riskSubmits = TRiskSubmit::where('company_cd', $user->company_cd)
-            ->whereIn('s_organization_id', $organizationIds)
-            ->where('s_submit_type', 1)
-            ->orderBy('created_at', 'desc')
+        $riskSubmits = TRiskSubmit::orderBy('created_at', 'desc')
+            ->withCount('t_images')
+
             ->paginate(10);
 
         return response()->json([
@@ -31,60 +30,71 @@ class RiskController extends Controller
         ], 200);
     }
 
-    public function create() {}
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(RiskRequest $request)
+    public function batchSubmit(Request $request)
     {
+        $user = Auth::user();
+        $risks = $request->input('risks'); // Nhận mảng risks từ frontend
 
-        $risk = TRiskSubmit::create([
-            'company_cd' => $request->company_cd,
-            'risk_seq' => $request->risk_seq ?? 1,
-            's_organization_id' => $request->s_organization_id,
-            's_submitted_by' => $request->s_submitted_by,
-            's_huppened_on' => $request->s_huppened_on,
-            's_location' => $request->s_location,
-            's_detail' => $request->s_detail,
-            ' s_ip_address' => $request->s_ip_address,
-            's_device' => $request->s_device,
-            's_submit_type' => 1,
-            's_submitted_at' => $request->s_submitted_at,
-            'created_by' => $request->created_by,
-            'updated_by' => $request->updated_by,
-        ]);
-    }
+        if (empty($risks)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không có dữ liệu để lưu.',
+            ], 422);
+        }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
+        DB::beginTransaction();
+        try {
+            foreach ($risks as $riskData) {
+                $maxRiskSeq = TRiskSubmit::where('company_cd', $user->company_cd)->max('risk_seq') ?? 0;
+                $riskSeq = $maxRiskSeq + 1;
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
+                $risk = TRiskSubmit::create([
+                    'company_cd' => $user->company_cd,
+                    'risk_seq' => $riskSeq,
+                    's_organization_id' => $riskData['s_organization_id'],
+                    's_submitted_by' => $riskData['s_submitted_by'] ?? $user->user_nm,
+                    's_huppened_on' => $riskData['s_huppened_on'],
+                    's_location' => $riskData['s_location'],
+                    's_detail' => $riskData['s_detail'],
+                    's_ip_address' => $request->ip(),
+                    's_device' => 'PC',
+                    's_submit_type' => 1,
+                    's_submitted_at' => now(),
+                    'created_by' => $user->user_id,
+                    'updated_by' => $user->user_id,
+                ]);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
+                if (!empty($riskData['images'])) {
+                    $pictureSeq = 1;
+                    foreach ($riskData['images'] as $image) {
+                        TImage::create([
+                            'risk_id' => $risk->risk_id,
+                            'picture_seq' => $pictureSeq,
+                            'file_path' => str_replace(url('/storage/'), '', $image['path']),
+                            'file_nm' => $image['file_name'],
+                            'thumbnail_path' => str_replace(url('/storage/'), '', $image['thumbnail_path']),
+                            'thumbnail_nm' => $image['thumbnail_name'],
+                            'took_at' => now(),
+                            'created_by' => $user->user_id,
+                            'updated_by' => $user->user_id,
+                        ]);
+                        $pictureSeq++;
+                    }
+                }
+            }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+            DB::commit();
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Dữ liệu đã được lưu thành công.',
+                'data' => $risks,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

@@ -68,4 +68,21 @@ class TImage extends Model
 	{
 		return $this->belongsTo(TRiskAssessment::class, 'risk_assessment_id');
 	}
+
+	public function getFileNameAttribute()
+	{
+		return $this->file_nm;
+	}
+
+	// Accessor để ánh xạ file_path thành path và tạo URL đầy đủ
+	public function getPathAttribute()
+	{
+		return $this->file_path ? url('/storage' . $this->file_path) : null;
+	}
+
+	// Accessor để ánh xạ thumbnail_path thành thumbnail_path và tạo URL đầy đủ
+	public function getThumbnailPathAttribute()
+	{
+		return $this->thumbnail_path ? url('/storage' . $this->thumbnail_path) : null;
+	}
 }

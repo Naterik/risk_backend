@@ -13,7 +13,7 @@ class RiskRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -24,13 +24,16 @@ class RiskRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "s_submitted_by" => ["nullable", "string"],
-            "s_organization_id" => ["required", "string"],
-            "s_huppened_on" => ["required", "string", "date"],
-            "s_location" => ["required", "string", "max:200"],
-            "s_details" => ["nullable", "string"],
+            's_submitted_by' => ['nullable', 'string'],
+            's_organization_id' => ['required', 'integer'], // Là integer theo schema
+            's_huppened_on' => ['required', 'date', 'before_or_equal:today'], // Không cho phép ngày tương lai
+            's_location' => ['required', 'string', 'max:200'],
+            's_details' => ['nullable', 'string'],
+            'images' => ['nullable'],
+            'images.*' => ['image', 'mimes:jpeg,png,jpg,gif', 'max:2048'], // Ảnh tối đa 2MB
         ];
     }
+
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(

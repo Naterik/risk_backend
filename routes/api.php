@@ -24,7 +24,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/company', [CompanyController::class, 'index']);
 Route::get('/company/{id}', [CompanyController::class, 'show']);
 Route::middleware('auth:api')->group(function () {
-    Route::get('/risks', [RiskController::class, 'index']);
+    Route::get('/risks', [RiskController::class, 'index'])->name('risks.index');
+    Route::post('/risks/batch-submit', [RiskController::class, 'batchSubmit']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', function () {
         return response()->json(['data' => Auth::guard('api')->user()]);
@@ -32,9 +33,5 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/organizations', [OrganizationController::class, 'getOrganizationTree'])->middleware('can.input.hiyari.from.pc');
     Route::post('/images/upload', [ImageUploadController::class, 'upload']);
     Route::get('/images/{fileName}', [ImageUploadController::class, 'getImage']);
+    Route::get('/risks/{riskId}/images', [ImageUploadController::class, 'getRiskImage']);
 });
-
-
-
-
-Route::post('/risk/store', [RiskController::class, 'store']);
