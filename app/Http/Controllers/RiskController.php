@@ -15,15 +15,15 @@ use Intervention\Image\Drivers\Gd\Driver;
 
 class RiskController extends Controller
 {
-    public function index(Request $request)
+
+    public function showAdd(Request $request)
     {
         $user = Auth::user();
 
         $riskSubmits = TRiskSubmit::orderBy('created_at', 'desc')
             ->withCount('t_images')
-
+            ->with('m_organization')
             ->paginate(10);
-
         return response()->json([
             'status' => 'success',
             'data' => $riskSubmits,
@@ -33,12 +33,11 @@ class RiskController extends Controller
     public function batchSubmit(Request $request)
     {
         $user = Auth::user();
-        $risks = $request->input('risks'); // Nhận mảng risks từ frontend
+        $risks = $request->input('risks');
 
         if (empty($risks)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Không có dữ liệu để lưu.',
             ], 422);
         }
 
@@ -86,7 +85,6 @@ class RiskController extends Controller
             DB::commit();
             return response()->json([
                 'status' => 'success',
-                'message' => 'Dữ liệu đã được lưu thành công.',
                 'data' => $risks,
             ], 201);
         } catch (\Exception $e) {
@@ -96,5 +94,21 @@ class RiskController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function listRisk(Request $request)
+    {
+        $user = Auth::user();
+        $riskSubmits = TRiskSubmit::where('company_cd', $user->company_cd)
+            ->orderBy('s_huppened_on', 'desc')
+            ->withCount('t_images')
+            ->with('m_organization')
+            ->orderBy('s_organization_id', 'asc')
+            ->paginate(10);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $riskSubmits,
+        ], 200);
     }
 }
